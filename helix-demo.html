@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helix CRM — Clinical Decision Support Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0d1117; color: #e8eaed; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; line-height: 1.5; }
+  a { color: #58a6ff; }
+  .header { background: linear-gradient(90deg, #161b22, #1c2128); border-bottom: 1px solid #30363d; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .header h1 span { color: #58a6ff; }
+  .header .warning { font-size: 12px; color: #f0883e; background: #3a2820; border: 1px solid #5a3a28; padding: 4px 10px; border-radius: 4px; font-weight: 500; }
+  .layout { display: flex; min-height: calc(100vh - 56px); }
+  .sidebar { width: 260px; background: #0a0d12; border-right: 1px solid #30363d; padding: 16px 12px; flex-shrink: 0; }
+  .sidebar h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #8b949e; margin: 0 0 12px 8px; font-weight: 600; }
+  .patient-row { padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: background 0.12s; margin-bottom: 4px; }
+  .patient-row:hover { background: #161b22; }
+  .patient-row.active { background: #1f6feb22; border-left: 3px solid #58a6ff; padding-left: 9px; }
+  .patient-row .pid { font-size: 13px; font-weight: 600; color: #c9d1d9; }
+  .patient-row .pname { font-size: 12px; color: #8b949e; margin-top: 2px; }
+  .main { flex: 1; padding: 20px 28px; overflow-y: auto; min-width: 0; }
+  .patient-banner { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .patient-banner h2 { margin: 0; font-size: 22px; }
+  .patient-banner .meta { color: #8b949e; font-size: 13px; margin-top: 4px; }
+  .panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+  .panel-header { padding: 12px 18px; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .panel-title { font-size: 15px; font-weight: 600; color: #c9d1d9; }
+  .signoff { padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+  .signoff.signed { background: #2ea04333; color: #56d364; border: 1px solid #2ea04366; }
+  .signoff.unsigned { background: #1f6feb22; color: #58a6ff; border: 1px solid #1f6feb44; cursor: pointer; }
+  .panel-body { padding: 16px 18px; }
+  .panel-body p { margin: 8px 0; }
+  .panel-body strong { color: #e8eaed; }
+  .empty-state { font-style: italic; color: #8b949e; }
+  .field-block { margin-bottom: 14px; }
+  .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #8b949e; margin-bottom: 4px; font-weight: 600; }
+  .field-value { color: #c9d1d9; }
+  ul.bullets { margin: 6px 0 0; padding-left: 18px; }
+  ul.bullets li { margin-bottom: 6px; color: #c9d1d9; }
+  .recommendation, .exclusion, .question-card { border: 1px solid #21262d; border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; background: #0d1117; }
+  .rec-header, .exc-header, .q-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #21262d; }
+  .rec-title, .exc-title, .q-title { font-weight: 600; font-size: 14px; color: #e8eaed; }
+  .priority-tag, .conf-tag, .cat-tag { font-size: 10px; padding: 2px 8px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .priority-tag.high, .conf-tag.high { background: #da363322; color: #f85149; border: 1px solid #f8514944; }
+  .priority-tag.medium, .conf-tag.medium { background: #d2992222; color: #d29922; border: 1px solid #d2992244; }
+  .priority-tag.low, .conf-tag.low { background: #2ea04322; color: #56d364; border: 1px solid #56d36444; }
+  .cat-tag { background: #1f6feb22; color: #58a6ff; border: 1px solid #58a6ff44; }
+  .rec-body, .exc-body, .q-body { font-size: 13px; }
+  .rec-body p, .exc-body p, .q-body p { margin: 6px 0; }
+  .source-line { font-size: 11px; color: #8b949e; margin-top: 6px; font-style: italic; }
+  .uncertainty-block { margin-top: 12px; padding: 10px 12px; background: #1c1206; border-left: 3px solid #d29922; border-radius: 0 4px 4px 0; }
+  .uncertainty-block .field-label { color: #d29922; }
+  .uncertainty-block .field-value { font-size: 12px; color: #c9d1d9; }
+  .footer-note { color: #8b949e; font-size: 11px; padding: 16px 24px; border-top: 1px solid #30363d; background: #0a0d12; }
+  @media (max-width: 768px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #30363d; padding: 12px; }
+    .sidebar h2 { margin-left: 4px; }
+    .patient-row { display: inline-block; margin-right: 8px; vertical-align: top; min-width: 140px; }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Helix <span>CRM</span> — Clinical Decision Support</h1>
+  <div class="warning">⚠ SYNTHETIC TEST DATA — fabricated for software testing</div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h2>Patients</h2>
+    <div id="patient-list"></div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+
+<div class="footer-note">
+  Helix CRM is a clinical decision support system. AI insights are grounded in NICE / USPSTF guidelines and reviewed by clinicians before clinical use.
+  Stack: Postgres • Pinecone • Anthropic Claude Sonnet 4.6 • n8n • Retool. This is a static snapshot demo built from real Supabase data.
+</div>
+
+<script>
+const DATA = {
+  "SYNTH-001": {
+    name: "Maria Gonzalez",
+    dob: "1992-03-14", sex: "F",
+    summary: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-07",
+      chief_complaint: "Annual physical examination",
+      diagnoses: "Episodic migraine; Seasonal allergic rhinitis",
+      medications: "Loratadine 10 mg PO daily PRN allergies; Sumatriptan 50 mg PO PRN migraine",
+      allergies: "Penicillin (rash, childhood)",
+      labs: "CBC normal; Glucose 88 mg/dL; Creatinine 0.8; Total cholesterol 178; LDL 102; HDL 58; TSH 2.1; HbA1c 5.2"
+    },
+    patterns: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-07",
+      analysis_date: "2026-04-29",
+      recurring_symptoms: [],
+      trending_labs: [{ lab: "All labs reviewed", trend: "stable", concern: "low" }],
+      unresolved_flags: [
+        { flag: "Mammogram referral placed — completion not confirmed", evidence: "Mammogram referral placed given family history of breast cancer (2026-04-22). No subsequent visit note or result confirming completion." },
+        { flag: "Family history of paternal CAD/MI at age 62 — no formal CV risk stratification documented", evidence: "Father: CAD, MI at age 62 (2026-04-22). LDL of 102 noted but no 10-year ASCVD risk calculation documented." },
+        { flag: "Episodic migraine — last episode ~6 months prior, no formal reassessment plan", evidence: "Episodic migraine, well controlled (2026-04-22). No trigger review, frequency tracking, or escalation threshold documented." }
+      ],
+      medication_changes: [],
+      contradictions: [],
+      data_quality_notes: "Only a single visit date (2026-04-22) is present. This is a one-visit record — no longitudinal comparison is possible. All 'unresolved' flags are flagged based on absence of follow-up data within this single encounter."
+    },
+    lab_recs: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-09",
+      recommendations: [
+        { lab: "Blood Pressure Measurement", priority: "medium", rationale: "USPSTF (2021) recommends screening all adults ≥18 for hypertension (Grade A). No HTN documented; BP should be confirmed at this annual physical.", normal_range: "<120/80 mmHg normal", guideline: "USPSTF 2021 — Hypertension Screening (Grade A); NICE NG136", interval: "Annually if age ≥40 or at risk; every 3–5 years if low risk" },
+        { lab: "10-Year Cardiovascular Risk Estimation", priority: "medium", rationale: "Patient uses sumatriptan for migraine — triptans are contraindicated in established CVD. USPSTF (2022) recommends formal 10-year CVD risk estimation for adults 40–75 before statin decisions.", normal_range: "Low <7.5%; Intermediate 7.5–10%; High ≥10%", guideline: "USPSTF 2022 — Statin Use for Primary Prevention", interval: "Calculate at this visit; reassess every 3–5 years" },
+        { lab: "HbA1c / Fasting Glucose", priority: "low", rationale: "Current HbA1c 5.2% and fasting glucose 88 mg/dL — both normal. USPSTF recommends repeat diabetes screening every 3 years if normal.", normal_range: "HbA1c <5.7%; Fasting glucose 70–99 mg/dL", guideline: "USPSTF 2021 — Diabetes Screening (Grade B)", interval: "Every 3 years if BMI and risk factors stable" },
+        { lab: "Fasting Lipid Panel", priority: "low", rationale: "Current values acceptable: Total chol 178, LDL 102, HDL 58. Repeat lipid panel appropriate to reassess CVD risk in 3–5 years if low-risk.", normal_range: "Total <200; LDL <100; HDL ≥40 (M) / ≥50 (F)", guideline: "USPSTF 2022 — Statin Use for CVD Prevention", interval: "Every 3–5 years if no new CVD risk factors" }
+      ],
+      uncertainty_notes: "Patient age, sex, BMI, smoking status are not provided — these are required for full USPSTF screening eligibility and Pooled Cohort Equations CVD risk calculation. Recommendations conditional on these missing inputs."
+    },
+    dx_exclusions: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-09",
+      exclusions: [
+        { diagnosis: "Type 2 Diabetes Mellitus", confidence: "high", considered_because: "Routine metabolic screening at annual physical.", exclusion_rationale: "HbA1c 5.2% is well below diagnostic threshold (≥6.5%) and below prediabetes range (5.7–6.4%). Fasting glucose 88 mg/dL also normal. Both screening values unambiguously normal.", guideline: "USPSTF 2021 — T2DM Screening" },
+        { diagnosis: "Hypothyroidism", confidence: "high", considered_because: "Migraine and fatigue can overlap with hypothyroid symptoms; TSH obtained.", exclusion_rationale: "TSH 2.1 mIU/L is squarely in normal range (0.4–4.0). No documentation of fatigue, cold intolerance, weight gain, or bradycardia. Normal TSH effectively excludes primary hypothyroidism.", guideline: "NICE NG145" },
+        { diagnosis: "Familial Hypercholesterolemia", confidence: "high", considered_because: "LDL 102 noted in patient with no documented statin therapy.", exclusion_rationale: "LDL of 102 is substantially below FH threshold (>190 mg/dL per Simon Broome criteria). Lipid profile (TC 178, LDL 102, HDL 58) is favorable. No family history of premature CVD documented.", guideline: "NICE CG71; USPSTF 2022" },
+        { diagnosis: "Secondary Headache — Intracranial Pathology", confidence: "medium", considered_because: "Active migraine diagnosis; recurrent headache requires consideration of secondary causes.", exclusion_rationale: "Established migraine diagnosis with no documented red flag features (SNOOP4): no systemic illness, no neurologic deficits, no thunderclap onset, no positional component, no progressive worsening. NICE NG150 supports clinical migraine diagnosis without routine neuroimaging in absence of red flags.", guideline: "NICE NG150 — Headaches in Over 12s" },
+        { diagnosis: "Chronic Rhinosinusitis", confidence: "high", considered_because: "Active diagnosis of seasonal allergic rhinitis; symptoms can overlap.", exclusion_rationale: "Rhinitis documented as seasonal (not perennial) and managed with PRN loratadine. Chronic rhinosinusitis per NICE requires ≥12 weeks of nasal obstruction, discharge, or facial pain — no such duration documented.", guideline: "NICE NG91" }
+      ],
+      uncertainty_notes: "Medication-Overuse Headache (MOH) cannot be excluded without sumatriptan use frequency data. Depression/anxiety as migraine comorbidity not screened. Patient demographics (age, sex, BMI, smoking, race) absent — required for full USPSTF CVD risk stratification."
+    },
+    questions: [
+      { topic: "Mammogram completion status", question: "When you received the referral for a mammogram in April, were you able to schedule and complete that appointment, and have you heard back about the results?", rationale: "Mammogram referral placed given family history of breast cancer (2026-04-22). No completion record present (still_unaddressed=true).", category: "follow-up", priority: "high" },
+      { topic: "Cardiovascular risk stratification", question: "Given your father had a heart attack at age 62, how have you and your providers approached understanding your own long-term heart disease risk?", rationale: "Paternal CAD/MI at age 62 documented and LDL 102 noted (2026-04-22), but no formal 10-year ASCVD risk calculation or cardiovascular risk management discussion is recorded.", category: "follow-up", priority: "high" },
+      { topic: "Migraine frequency and triggers", question: "Since your last migraine episode about six months ago, how have you been tracking frequency and any potential triggers, and what would prompt you to seek additional care?", rationale: "Episodic migraine assessed as 'well controlled' (2026-04-22), but no trigger review, frequency log, or escalation threshold was documented.", category: "follow-up", priority: "medium" },
+      { topic: "Family history breast cancer details", question: "Can you tell me more about which relatives have had breast cancer — including their relationship to you, age at diagnosis, and whether any genetic testing has been done?", rationale: "Mammogram referral was driven by family history, but record does not detail relation, age at diagnosis, or BRCA risk assessment.", category: "screening", priority: "medium" },
+      { topic: "Lifestyle and cardiovascular prevention", question: "How would you describe your current diet, physical activity, and any habits like smoking or alcohol use that might affect your heart health?", rationale: "Modifiable lifestyle risk factors are a necessary component of CV prevention counseling not yet captured given paternal CAD/MI history.", category: "safety", priority: "medium" },
+      { topic: "Migraine management plan", question: "What do you currently do when a migraine starts — do you have a rescue medication or strategy, and at what point would you feel like your migraines were no longer well controlled?", rationale: "No acute rescue plan, preventive therapy discussion, or patient-defined escalation threshold is recorded for the patient's episodic migraine.", category: "medication-review", priority: "low" }
+    ]
+  },
+  "SYNTH-005": {
+    name: "Eleanor M. Hayes",
+    dob: "1941-09-28", sex: "F",
+    summary: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-07",
+      chief_complaint: "Routine 6-month comprehensive geriatric review; increased forgetfulness over past 8 weeks and one fall (no injuries) 3 weeks ago",
+      diagnoses: "HFpEF NYHA II; persistent atrial fibrillation; hypertension; T2DM (diet-controlled); MCI vs. early dementia (mixed type); severe osteoarthritis (both knees, right hip); hypothyroidism; CKD Stage 3a (eGFR 50); L2 vertebral compression fracture (2022); right-eye cataract; recurrent falls; frailty; mild anemia",
+      medications: "Apixaban 2.5 mg BID; Metoprolol succinate 50 mg daily; Furosemide 20 mg daily; Lisinopril 10 mg daily; Levothyroxine 75 mcg daily; Atorvastatin 20 mg QHS; Vitamin D 1000 IU daily; Calcium carbonate 600 mg BID; Acetaminophen 650 mg TID PRN; Donepezil 5 mg QHS; Tamsulosin 0.4 mg QHS (duplicate prescription); Topical diclofenac (trial)",
+      allergies: "Sulfa (rash); Penicillin (per old chart, no reaction in adulthood)",
+      labs: "WBC 6.1; Hgb 11.8 (mildly low, baseline); Plt 220; Na 138; K 4.2; Cr 1.3; eGFR 48; Glucose 142; NT-proBNP 980 (chronically elevated, stable from prior 1020); TSH 3.4; HbA1c 6.6; MoCA 18/30 (today)"
+    },
+    patterns: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-09",
+      analysis_date: "2026-04-29 / 2026-05-08",
+      recurring_symptoms: [
+        { symptom: "Cognitive decline / increased forgetfulness", evidence: "MoCA dropped from 22 → 19 → 18 over 24 months. Daughter concerned about repeating questions, forgetting recent conversations." },
+        { symptom: "Recurrent falls", evidence: "1 fall in past 3 months (slipped on rug, no injury). 2 in past year. Most recent: 3 weeks ago." },
+        { symptom: "Bilateral pedal edema", evidence: "Trace bilateral pedal edema on exam. Stable HFpEF since 2019." },
+        { symptom: "Knee and hip pain (osteoarthritis)", evidence: "Limited to ~100 ft before resting due to knee/hip pain. Severe varus deformity both knees, limited ROM right hip." },
+        { symptom: "Elevated NT-proBNP (chronically)", evidence: "NT-proBNP 980 (chronically elevated, stable from prior 1020)." }
+      ],
+      trending_labs: [
+        { lab: "MoCA Score", trend: "worsening", concern: "high" },
+        { lab: "NT-proBNP", trend: "stable", concern: "moderate" },
+        { lab: "eGFR", trend: "stable (50 → 48)", concern: "moderate" },
+        { lab: "Body Weight", trend: "worsening (134 lb, down 3 lb)", concern: "moderate" }
+      ],
+      unresolved_flags: [
+        { flag: "Driving safety — patient still driving locally despite cognitive decline and falls", evidence: "Drives only locally to grocery store; daughter has been pushing to stop driving. Driving evaluation referral ordered but not completed." },
+        { flag: "Right-eye cataract awaiting surgery", evidence: "Cataract right eye visible on exam. No surgical date documented." },
+        { flag: "Advance care planning discussion deferred", evidence: "Discuss advance care planning at next visit (daughter agrees). Not completed at this visit." },
+        { flag: "Formal neuropsychological testing not yet completed", evidence: "Recommend formal neuropsychological testing — referral placed but no results." },
+        { flag: "Mild anemia (Hgb 11.8) — etiology and workup not documented", evidence: "Hgb 11.8 mildly low, baseline. No documented etiology or iron studies in retrieved chunks." }
+      ],
+      medication_changes: [
+        { medication: "Donepezil", change_type: "dose_change", reason: "Cognitive decline — MoCA 18/30 down from 19. Plan to increase from 5 mg to 10 mg." },
+        { medication: "Tamsulosin 0.4 mg", change_type: "discontinued", reason: "Duplicate prescription from urology and PCP. PCP order discontinued; urology to manage." },
+        { medication: "Topical diclofenac", change_type: "added", reason: "Knee OA pain trial; systemic NSAIDs avoided given CKD and HF." }
+      ],
+      contradictions: [
+        { description: "eGFR value discrepancy — problem list states Stage 3a CKD (eGFR 50), same-day labs show eGFR 48. Discrepancy not reconciled in note." }
+      ],
+      data_quality_notes: "Single visit date (2026-04-25) in retrieved chunks; prior visit dates for MoCA and NT-proBNP not explicitly documented. Penicillin allergy flagged as unverified ('per old chart, no reaction in adulthood')."
+    },
+    lab_recs: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-09",
+      recommendations: [
+        { lab: "Renal Function Panel (eGFR, Cr, K, Na)", priority: "high", rationale: "Patient on Lisinopril (ACE-I) and Furosemide for HFpEF, with CKD Stage 3a (eGFR 48, K 4.2). NICE NG106 mandates renal/electrolyte monitoring every 3–6 months for stable patients on ACE inhibitors. Compounded risk for AKI, hyponatraemia, and hyperkalaemia.", normal_range: "eGFR ≥60; Cr 0.6–1.2; K 3.5–5.0", guideline: "NICE NG106 §1.7.4–1.7.5; NICE NG136", interval: "Every 3–6 months stable; sooner if clinical deterioration" },
+        { lab: "Iron Studies (Ferritin, TSAT, Hgb)", priority: "high", rationale: "Patient has documented mild anaemia (Hgb 11.8) alongside HFpEF. NICE NG106 §1.8.1 explicitly mandates iron status as minimum component of HF clinical reviews. NICE NG106 §1.4.7 warns iron deficiency anaemia in HF should not be assumed HF-related — alternative causes must be investigated.", normal_range: "Ferritin 20–200 (F); TSAT 20–50%; Hgb ≥12 (F)", guideline: "NICE NG106 §1.8.1, §1.4.6–1.4.7", interval: "Now; repeat every 6 months or sooner if Hgb declines" },
+        { lab: "Vitamin B12 and Folate", priority: "high", rationale: "Patient has new/worsening cognitive decline (MoCA 18/30) and mild anaemia. NICE NG97 requires excluding reversible causes of cognitive decline before specialist referral. B12 and folate deficiency are reversible contributors. Not documented in recent labs.", normal_range: "B12 200–900 pg/mL; Folate 2.7–17.0 ng/mL", guideline: "NICE NG97 §1.2.2 (Dementia)", interval: "Now (required as part of reversible dementia workup)" },
+        { lab: "HbA1c", priority: "high", rationale: "Patient has T2DM (diet-controlled). HbA1c 6.6% (48 mmol/mol). NICE NG28 §1.5.9 recommends RELAXED HbA1c target for older, frailer patients at fall risk — tight control increases hypoglycaemia and fall risk. Patient has documented frailty, recurrent falls, and cognitive impairment.", normal_range: "Standard target ≤7.0%; relaxed ≤7.5–8.5% for frail/elderly", guideline: "NICE NG28 §1.5.1, §1.5.9", interval: "Every 6 months; consider relaxing target given frailty" },
+        { lab: "25-OH Vitamin D + Serum Calcium", priority: "high", rationale: "Patient has L2 compression fracture (2022), recurrent falls, frailty, OA, and is on Vitamin D 1000 IU/day. CKD impairs vitamin D hydroxylation. USPSTF (2024) identifies vitamin D status as relevant to fall/fracture risk in adults ≥65.", normal_range: "25-OH Vit D: 30–100 ng/mL sufficient; Calcium 8.5–10.5", guideline: "USPSTF Falls Prevention 2024; NICE NG106 §1.8.1", interval: "Now (recheck already ordered)" },
+        { lab: "Urine Albumin-to-Creatinine Ratio (uACR)", priority: "medium", rationale: "Patient has CKD 3a, hypertension, T2DM — independent risk factors for progressive nephropathy. NICE NG136 §1.3.3 explicitly recommends uACR for all hypertension patients to assess proteinuria and target organ damage. Not documented in recent labs.", normal_range: "<3 mg/mmol normal; 3–30 microalbuminuria", guideline: "NICE NG136 §1.3.3; NICE NG28 §1.44", interval: "Now; every 6–12 months thereafter" },
+        { lab: "NT-proBNP", priority: "medium", rationale: "HFpEF NYHA II with current NT-proBNP 980 (stable from 1020). NICE NG106 §1.8.3 recommends monitoring at least every 6 months stable, sooner with new symptoms or medication changes. Diuretics, ACE-I, and beta-blockers can suppress natriuretic peptide levels — clinical context essential.", normal_range: "Age-stratified: <125 (<75y); <450 (≥75y) outpatient HF monitoring", guideline: "NICE NG106 §1.8.3, §1.2.6–1.2.7", interval: "Every 6 months stable; sooner if decompensation" }
+      ],
+      uncertainty_notes: "DUPLICATE TAMSULOSIN PRESCRIPTION — high-priority medication safety flag. Tamsulosin in frail elderly with falls and orthostatic risk is significant concern. DONEPEZIL listed at both 5 mg (current) and 10 mg (planned titration) — must not be co-prescribed. Patient age not explicitly stated — affects NT-proBNP reference ranges, HbA1c targets, and statin recommendations."
+    },
+    dx_exclusions: {
+      signed: true, signedBy: "risingtechllc@gmail.com", signedAt: "2026-05-09",
+      exclusions: [
+        { diagnosis: "Acute Decompensated Heart Failure (ADHF)", confidence: "high", considered_because: "Known HFpEF NYHA II with chronically elevated NT-proBNP. New forgetfulness and recent fall could represent decompensation in a frail elderly patient.", exclusion_rationale: "NICE NG106 defines NT-proBNP >2,000 ng/L as urgent threshold. This patient's 980 is below threshold and DECREASED from prior 1020 — indicating stability, not decompensation. No documented acute dyspnea, new edema, orthopnea, or rapid weight gain.", guideline: "NICE NG106 §1.2.3–1.2.7" },
+        { diagnosis: "Hypothyroidism as primary driver of cognitive decline", confidence: "high", considered_because: "Known hypothyroidism on levothyroxine. Undertreated hypothyroidism is a classic reversible cause of cognitive impairment, fatigue, and gait instability.", exclusion_rationale: "Current TSH 3.4 mIU/L within euthyroid range (0.4–4.0). No biochemical evidence of hypothyroid-driven cognitive impairment. Hyperthyroidism (TSH suppression) also excluded.", guideline: "NICE NG97 §1.2.2 (Dementia)" },
+        { diagnosis: "Medication-Induced Cognitive Impairment (sole cause)", confidence: "medium", considered_because: "Multiple meds with potential CNS effects: Tamsulosin (anticholinergic, duplicate prescription), Donepezil (5 mg + planned 10 mg), Furosemide. NICE NG97 flags anticholinergic burden as reversible cause.", exclusion_rationale: "Cannot be SOLE explanation — patient has established mixed-type MCI/early dementia diagnosis, MoCA 18/30 (moderate impairment), structural vascular risk factors (AF, HTN, T2DM, CKD), and is already on donepezil indicating prior specialist attribution to neurodegenerative pathology.", guideline: "NICE NG97 §1.6.1–1.6.3; Anticholinergic Cognitive Burden Scale" },
+        { diagnosis: "Delirium superimposed on baseline cognitive impairment", confidence: "medium", considered_because: "Frail elderly with known cognitive impairment, CKD, diabetes, polypharmacy. Acute/subacute delirium must be distinguished from progressive dementia.", exclusion_rationale: "Forgetfulness described as PROGRESSIVE over 8 weeks — subacute-to-chronic trajectory inconsistent with delirium's typical acute (hours-to-days) onset. No documented acute precipitant. Routine geriatric review (not acute presentation). Labs show no acute metabolic derangement.", guideline: "NICE NG97 §1.2.30–1.2.32" },
+        { diagnosis: "Orthostatic Hypotension as sole cause of falls", confidence: "low", considered_because: "Patient on furosemide, lisinopril, metoprolol, and tamsulosin — combination with significant orthostatic risk.", exclusion_rationale: "NO standing blood pressure measurement is documented per NICE NG136 §1.1.5–1.1.6 requirement. Cannot confidently exclude orthostatic hypotension. Cannot be SOLE cause of falls — multifactorial profile: severe OA (gait instability), cataract (visual impairment), frailty, cognitive impairment.", guideline: "NICE NG136 §1.1.5–1.1.6; USPSTF Falls Prevention 2023" }
+      ],
+      uncertainty_notes: "DELIRIUM cannot be fully excluded without CAM administration. ORTHOSTATIC HYPOTENSION cannot be excluded without standing BP — urgent clinical action item. B12/FOLATE not in provided labs — reversible causes of cognitive impairment. NORMAL PRESSURE HYDROCEPHALUS — no structural brain imaging referenced. PATIENT SAFETY: Duplicate tamsulosin prescription requires immediate reconciliation. Donepezil dose discrepancy must be clarified."
+    },
+    questions: [
+      { topic: "Cognitive decline progression", question: "How would you describe the changes in your memory and thinking over the past several weeks — what kinds of tasks or conversations are feeling harder than they used to?", rationale: "MoCA trended from 22 → 19 → 18/30 over 24 months. Pattern data notes daughter concerned about repeating questions and forgetting recent conversations. Diagnosis is mixed-type MCI/early dementia.", category: "follow-up", priority: "high" },
+      { topic: "Driving safety and cognition", question: "Given your daughter's concerns about your driving and the referral for a driving evaluation that was ordered, how have things been going behind the wheel, and have you had a chance to complete that evaluation yet?", rationale: "Drives only locally to grocery store; daughter has been pushing to stop driving. Driving evaluation referral ordered but not completed. MoCA 18/30 today.", category: "safety", priority: "high" },
+      { topic: "Donepezil titration tolerability", question: "Since you have been taking Donepezil 5 mg at bedtime, what side effects if any have you noticed — such as nausea, vivid dreams, diarrhea, or sleep disturbances — as we consider increasing to 10 mg?", rationale: "Medication change note states current 5 mg well tolerated, plan to increase to 10 mg PO QHS. Assessing tolerability informs whether the planned dose escalation is safe to proceed.", category: "medication-review", priority: "high" },
+      { topic: "Fall circumstances and prevention", question: "Can you walk me through what was happening in the moments before your fall three weeks ago — where you were, what you were doing, and whether you felt any dizziness or lightheadedness beforehand?", rationale: "Chief complaint: one fall (no injuries) 3 weeks ago. Patient on Tamsulosin and Furosemide, both of which can contribute to orthostatic symptoms.", category: "follow-up", priority: "high" },
+      { topic: "Advance care planning preferences", question: "At your last visit it was noted that you and your daughter agreed to discuss advance care planning today — what are your thoughts about the kind of care you would want if you were ever unable to speak for yourself?", rationale: "Discuss advance care planning at next visit (daughter agrees) — still unaddressed. Given progressive cognitive decline (MoCA 22→18) and HFpEF + MCI + frailty, this is time-sensitive while patient retains decision-making capacity.", category: "screening", priority: "high" },
+      { topic: "Right-eye cataract surgical planning", question: "What is the current status of your plans for cataract surgery on your right eye, and how is the vision affecting your daily activities such as reading, navigating stairs, or driving?", rationale: "Right-eye cataract awaiting surgery, no surgical date documented. Visual impairment from the cataract may be contributing to fall risk.", category: "follow-up", priority: "medium" },
+      { topic: "Anemia etiology and symptoms", question: "Have you noticed any new fatigue, shortness of breath on exertion, or dizziness that might be related to your blood count, and do you have any sense of what might be contributing to your anemia?", rationale: "Hgb 11.8 noted as 'mildly low, baseline' but workup not documented. In context of 3 lb unintentional weight loss and CKD eGFR 48, etiology warrants clarification.", category: "diagnostic", priority: "medium" },
+      { topic: "Topical diclofenac and kidney function", question: "Now that you have been trialing the topical diclofenac gel on your knees, how much relief have you noticed, and have you experienced any skin irritation or other new symptoms since starting it?", rationale: "Topical diclofenac trial ordered for knees — systemic NSAIDs avoided given CKD and HF. Patient has CKD Stage 3a and HFpEF, making monitoring for systemic absorption effects important.", category: "medication-review", priority: "medium" }
+    ]
+  },
+  "SYNTH-011": {
+    name: "Maria Rodriguez",
+    dob: "1982-04-15", sex: "F",
+    summary: {
+      signed: false,
+      chief_complaint: "Persistent headache x2 weeks with photophobia and intermittent nausea",
+      diagnoses: "Migraines, Hypothyroidism",
+      medications: "Levothyroxine 75 mcg daily, Sumatriptan PRN",
+      allergies: "(none documented)",
+      labs: "TSH (follow-up next month)"
+    },
+    patterns: {
+      signed: false,
+      empty_state: true
+    },
+    lab_recs: {
+      signed: false,
+      recommendations: [
+        { lab: "TSH (Thyroid-Stimulating Hormone)", priority: "high", rationale: "Active hypothyroidism on Levothyroxine 75 mcg daily with TSH follow-up scheduled. Persistent headache and nausea can both be symptoms of suboptimal thyroid control (over- or under-treatment), making this test particularly timely given the current chief complaint.", normal_range: "0.4 – 4.0 mIU/L (target on levothyroxine typically 0.5–2.5)", guideline: "NICE NG145 — Thyroid disease", interval: "Every 6–12 months once stable; sooner if symptoms change (which is the case here)" },
+        { lab: "Free T4", priority: "high", rationale: "On Levothyroxine 75 mcg with persistent headache + nausea x2 weeks. Free T4 should accompany TSH to assess adequacy of replacement, particularly when symptoms suggest possible over- or under-replacement. TSH alone may lag behind clinical changes.", normal_range: "9–25 pmol/L (typically 12–22 on treatment)", guideline: "NICE NG145", interval: "At same time as TSH follow-up; concurrent measurement given active symptoms" },
+        { lab: "Complete Blood Count (CBC)", priority: "high", rationale: "Persistent headache x2 weeks with photophobia and nausea. Anemia is a recognized secondary cause of headache. CBC screens for anemia, infection (elevated WBC), and thrombocytopenia. Baseline investigation to exclude secondary causes.", normal_range: "Hgb 12–16 g/dL (F); WBC 4.5–11×10⁹/L; Platelets 150–400×10⁹/L", guideline: "NICE NG144 — Headache (secondary cause exclusion)", interval: "Now (acute workup)" },
+        { lab: "ESR + CRP", priority: "high", rationale: "Persistent headache x2 weeks with photophobia. Inflammatory markers important to exclude secondary inflammatory or infective causes (temporal arteritis, meningitis, sinusitis). Photophobia raises clinical importance of ruling out meningism or inflammatory CNS pathology.", normal_range: "ESR <20 mm/hr (F); CRP <5 mg/L", guideline: "NICE NG144 — Headache in over 12s", interval: "Now (one-time test for secondary cause exclusion)" },
+        { lab: "CMP (Electrolytes, Renal Function, LFTs)", priority: "high", rationale: "Persistent headache, nausea, photophobia. Electrolyte imbalances (hyponatraemia, hypercalcaemia) and renal dysfunction are recognized secondary causes. NICE NG136 recommends measuring electrolytes, creatinine, eGFR as baseline assessment for new/worsening symptoms.", normal_range: "Na 136–145; K 3.5–5.0; eGFR >60; ALT 7–56", guideline: "NICE NG136 (applied to secondary headache exclusion)", interval: "Now (acute symptom workup)" },
+        { lab: "Serum Ferritin + Iron Studies", priority: "high", rationale: "Hypothyroidism (associated with iron deficiency risk) plus headache and nausea. Iron deficiency — even without frank anemia — contributes to headache and fatigue. Levothyroxine absorption can be impaired by iron deficiency, making this clinically relevant to thyroid management.", normal_range: "Ferritin 15–200 ng/mL (F); TSAT 20–50%", guideline: "NICE NG106 (iron status principle); NICE NG145 (Levo absorption)", interval: "Now, as part of acute headache workup" }
+      ],
+      uncertainty_notes: "Patient age and sex not explicitly stated — affects normal range interpretation, CV risk calibration, and screening interval choices. TSH result not yet available — pending follow-up will determine whether levothyroxine adjustment is needed. Sumatriptan use frequency not documented — if used >10 days/month, MOH should be considered."
+    },
+    dx_exclusions: {
+      signed: false,
+      exclusions: [
+        { diagnosis: "Subarachnoid Hemorrhage (SAH)", confidence: "medium", considered_because: "Persistent headache x2 weeks with photophobia and nausea — must be excluded in any new or changed headache pattern.", exclusion_rationale: "SAH classically presents as sudden 'thunderclap' headache reaching maximal intensity within seconds. SYNTH-011's headache is described as persistent over 2 weeks without sudden onset. Subacute, progressive pattern over 2 weeks is inconsistent with SAH. No neck stiffness, altered consciousness, or focal neurological signs documented.", guideline: "NICE CG150 — Headaches in over 12s" },
+        { diagnosis: "Bacterial Meningitis", confidence: "high", considered_because: "Headache with photophobia and nausea are cardinal features of meningitis; 2-week duration prompted consideration of subacute bacterial or viral meningitis.", exclusion_rationale: "Bacterial meningitis typically presents acutely (hours to days) with triad of headache, fever, and neck stiffness, often with sepsis features. Context documents NO fever, NO neck stiffness, NO rash, NO altered mental status. The 2-week subacute course without systemic deterioration is inconsistent with untreated bacterial meningitis.", guideline: "NICE NG51; NICE CG102" },
+        { diagnosis: "Idiopathic Intracranial Hypertension (IIH)", confidence: "medium", considered_because: "Persistent headache with photophobia and nausea over 2 weeks raises consideration of raised intracranial pressure.", exclusion_rationale: "IIH typically presents with daily progressive headache, transient visual obscurations, pulsatile tinnitus, and papilloedema on fundoscopy. SYNTH-011's context documents no visual obscurations, no papilloedema, no pulsatile tinnitus. Symptom pattern is consistent with documented migraine diagnosis.", guideline: "NICE CG150; NICE NG136" },
+        { diagnosis: "Hypothyroidism-Induced Headache", confidence: "medium", considered_because: "Active hypothyroidism on Levothyroxine; undertreated hypothyroidism can cause headache and cognitive symptoms.", exclusion_rationale: "Headache pattern with photophobia and nausea is phenotypically consistent with documented migraine rather than hypothyroid headache (typically diffuse, non-pulsatile, with cold intolerance, weight gain, fatigue). No such systemic hypothyroid features documented.", guideline: "NICE NG145" },
+        { diagnosis: "Medication Overuse Headache (Triptan Rebound)", confidence: "low", considered_because: "Sumatriptan PRN use; persistent daily headache over 2 weeks in triptan user raises possibility of MOH.", exclusion_rationale: "NICE CG150 defines MOH as headache ≥15 days/month with triptan use ≥10 days/month for >3 months. The 2-week window alone does not meet ≥3-month chronicity threshold. However, frequency of Sumatriptan use is not documented.", guideline: "NICE CG150" }
+      ],
+      uncertainty_notes: "GIANT CELL ARTERITIS — cannot be excluded without knowing patient's age. INTRACRANIAL SPACE-OCCUPYING LESION — 2-week progressive headache warrants consideration. Without documented neurological exam or imaging, cannot confidently exclude. MOH — Sumatriptan use frequency missing from record. VIRAL MENINGITIS / ENCEPHALITIS — cannot be fully excluded without CSF analysis if clinical suspicion increases."
+    },
+    questions: [
+      { topic: "Headache characteristics and progression", question: "Can you describe how your headache has changed over the past two weeks — where it is located, how severe it gets, and whether anything makes it better or worse?", rationale: "Chief complaint: 'Persistent headache x2 weeks with photophobia and intermittent nausea'. Understanding evolution and character is essential to managing the documented migraine diagnosis.", category: "follow-up", priority: "high" },
+      { topic: "Medication overuse headache risk", question: "How many days per week on average are you taking Sumatriptan, and are you aware of the risk of headaches becoming more frequent with frequent use of acute treatments?", rationale: "Sumatriptan PRN listed under medications with persistent headache x2 weeks. Frequent PRN triptan use can lead to medication-overuse headache.", category: "safety", priority: "high" },
+      { topic: "Photophobia and nausea impact", question: "How much are the photophobia and nausea affecting your daily activities, and have you noticed any other associated symptoms such as changes in vision or neck stiffness?", rationale: "Chief complaint explicitly lists photophobia and intermittent nausea. Assessing functional impact and ruling out red-flag features is critical given the two-week duration.", category: "diagnostic", priority: "high" },
+      { topic: "Sumatriptan use and effectiveness", question: "How often have you been using your Sumatriptan, and how well does it relieve the headache when you take it?", rationale: "Sumatriptan PRN listed under medications. Understanding frequency of use and degree of relief informs whether current migraine management plan is adequate.", category: "medication-review", priority: "high" },
+      { topic: "Levothyroxine adherence and symptoms", question: "How consistently have you been taking your Levothyroxine 75 mcg daily, and have you noticed any symptoms such as fatigue, weight changes, or cold intolerance that might suggest your thyroid levels are off?", rationale: "Levothyroxine 75 mcg daily for hypothyroidism, TSH follow-up next month. Adherence and symptom review are important ahead of pending TSH check.", category: "medication-review", priority: "medium" },
+      { topic: "TSH follow-up preparation", question: "Since your TSH is scheduled to be rechecked next month, what symptoms — if any — have you been experiencing that might suggest your thyroid hormone levels need adjustment?", rationale: "Labs field states 'TSH (follow-up next month)' and patient carries diagnosis of Hypothyroidism. Proactively reviewing symptoms now helps determine whether the follow-up timeline is appropriate.", category: "follow-up", priority: "medium" },
+      { topic: "Migraine triggers and patterns", question: "What patterns or triggers have you identified that seem to bring on your migraines, such as stress, sleep disruption, dietary factors, or hormonal changes?", rationale: "Patient has documented diagnosis of Migraines. Identifying personal triggers is a standard component of migraine management and may explain the persistent headache.", category: "screening", priority: "medium" }
+    ]
+  }
+};
+
+const PATIENT_ORDER = ["SYNTH-001", "SYNTH-005", "SYNTH-011"];
+let activeId = "SYNTH-005"; // start with the rich case
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function signoffBanner(panel) {
+  if (panel.signed) {
+    return `<div class="signoff signed">✓ Reviewed by ${escapeHtml(panel.signedBy)} on ${escapeHtml(panel.signedAt)}</div>`;
+  }
+  return `<div class="signoff unsigned">Mark reviewed</div>`;
+}
+
+function renderSummary(s) {
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Patient Summary</div>
+        ${signoffBanner(s)}
+      </div>
+      <div class="panel-body">
+        <div class="field-block"><div class="field-label">Chief Complaint</div><div class="field-value">${escapeHtml(s.chief_complaint)}</div></div>
+        <div class="field-block"><div class="field-label">Active Diagnoses</div><div class="field-value">${escapeHtml(s.diagnoses)}</div></div>
+        <div class="field-block"><div class="field-label">Current Medications</div><div class="field-value">${escapeHtml(s.medications)}</div></div>
+        <div class="field-block"><div class="field-label">Allergies</div><div class="field-value">${escapeHtml(s.allergies || '(none documented)')}</div></div>
+        <div class="field-block"><div class="field-label">Recent Labs</div><div class="field-value">${escapeHtml(s.labs)}</div></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPatterns(p) {
+  if (p.empty_state) {
+    return `
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Patterns</div>${signoffBanner(p)}</div>
+        <div class="panel-body"><div class="empty-state">First visit on file — patterns will surface as additional notes are added.</div></div>
+      </div>
+    `;
+  }
+  const renderList = (items, formatter) =>
+    items && items.length ? `<ul class="bullets">${items.map(formatter).join('')}</ul>` : '<div class="empty-state">None on file.</div>';
+  return `
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Patterns</div>${signoffBanner(p)}</div>
+      <div class="panel-body">
+        <div class="field-block"><div class="field-label">Analysis Date</div><div class="field-value">${escapeHtml(p.analysis_date)}</div></div>
+        <div class="field-block"><div class="field-label">Recurring Symptoms</div>${renderList(p.recurring_symptoms, x => `<li><strong>${escapeHtml(x.symptom)}</strong> — ${escapeHtml(x.evidence)}</li>`)}</div>
+        <div class="field-block"><div class="field-label">Trending Labs</div>${renderList(p.trending_labs, x => `<li><strong>${escapeHtml(x.lab)}</strong> — trend: ${escapeHtml(x.trend)} · concern: ${escapeHtml(x.concern)}</li>`)}</div>
+        <div class="field-block"><div class="field-label">Unresolved Flags</div>${renderList(p.unresolved_flags, x => `<li><strong>${escapeHtml(x.flag)}</strong> — ${escapeHtml(x.evidence)}</li>`)}</div>
+        <div class="field-block"><div class="field-label">Medication Changes</div>${renderList(p.medication_changes, x => `<li><strong>${escapeHtml(x.medication)} (${escapeHtml(x.change_type)})</strong> — ${escapeHtml(x.reason)}</li>`)}</div>
+        <div class="field-block"><div class="field-label">Contradictions</div>${renderList(p.contradictions, x => `<li>${escapeHtml(x.description)}</li>`)}</div>
+        <div class="uncertainty-block"><div class="field-label">Data Quality Notes</div><div class="field-value">${escapeHtml(p.data_quality_notes)}</div></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderLabRecs(l) {
+  return `
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Lab Recommendations</div>${signoffBanner(l)}</div>
+      <div class="panel-body">
+        ${l.recommendations.map(r => `
+          <div class="recommendation">
+            <div class="rec-header">
+              <span class="priority-tag ${r.priority}">${r.priority}</span>
+              <span class="rec-title">${escapeHtml(r.lab)}</span>
+            </div>
+            <div class="rec-body">
+              <p><strong>Rationale:</strong> ${escapeHtml(r.rationale)}</p>
+              <p><strong>Normal range:</strong> ${escapeHtml(r.normal_range)}</p>
+              <p><strong>Monitoring interval:</strong> ${escapeHtml(r.interval)}</p>
+              <div class="source-line">Source: ${escapeHtml(r.guideline)}</div>
+            </div>
+          </div>
+        `).join('')}
+        <div class="uncertainty-block"><div class="field-label">Uncertainty Notes</div><div class="field-value">${escapeHtml(l.uncertainty_notes)}</div></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDxExclusions(d) {
+  return `
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Diagnosis Exclusions</div>${signoffBanner(d)}</div>
+      <div class="panel-body">
+        ${d.exclusions.map(e => `
+          <div class="exclusion">
+            <div class="exc-header">
+              <span class="conf-tag ${e.confidence}">${e.confidence}</span>
+              <span class="exc-title">${escapeHtml(e.diagnosis)}</span>
+            </div>
+            <div class="exc-body">
+              <p><strong>Considered because:</strong> ${escapeHtml(e.considered_because)}</p>
+              <p><strong>Exclusion rationale:</strong> ${escapeHtml(e.exclusion_rationale)}</p>
+              <div class="source-line">Source: ${escapeHtml(e.guideline)}</div>
+            </div>
+          </div>
+        `).join('')}
+        <div class="uncertainty-block"><div class="field-label">Uncertainty Notes</div><div class="field-value">${escapeHtml(d.uncertainty_notes)}</div></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderQuestions(qs, signed) {
+  return `
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Guided Questions</div>${signoffBanner({signed: false})}</div>
+      <div class="panel-body">
+        ${qs.map(q => `
+          <div class="question-card">
+            <div class="q-header">
+              <span class="priority-tag ${q.priority}">${q.priority}</span>
+              <span class="cat-tag">${escapeHtml(q.category)}</span>
+              <span class="q-title">${escapeHtml(q.topic)}</span>
+            </div>
+            <div class="q-body">
+              <p>${escapeHtml(q.question)}</p>
+              <div class="source-line"><strong>Rationale:</strong> ${escapeHtml(q.rationale)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderPatient(id) {
+  const p = DATA[id];
+  document.querySelectorAll('.patient-row').forEach(r => r.classList.toggle('active', r.dataset.id === id));
+  document.getElementById('main').innerHTML = `
+    <div class="patient-banner">
+      <h2>${escapeHtml(p.name)}</h2>
+      <div class="meta">Patient ID: ${escapeHtml(id)} · DOB: ${escapeHtml(p.dob)} · Sex: ${escapeHtml(p.sex)}</div>
+    </div>
+    ${renderSummary(p.summary)}
+    ${renderPatterns(p.patterns)}
+    ${renderLabRecs(p.lab_recs)}
+    ${renderDxExclusions(p.dx_exclusions)}
+    ${renderQuestions(p.questions, false)}
+  `;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderSidebar() {
+  const html = PATIENT_ORDER.map(id => `
+    <div class="patient-row" data-id="${id}" onclick="renderPatient('${id}')">
+      <div class="pid">${id}</div>
+      <div class="pname">${escapeHtml(DATA[id].name)}</div>
+    </div>
+  `).join('');
+  document.getElementById('patient-list').innerHTML = html;
+}
+
+renderSidebar();
+renderPatient(activeId);
+</script>
+</body>
+</html>

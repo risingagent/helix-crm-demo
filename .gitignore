@@ -1,0 +1,47 @@
+# Helix CRM .gitignore
+# Belt-and-suspenders rules — keep synthetic test data and secrets out of git.
+
+# Test data folder — synthetic only today, but if real PHI is ever placed here
+# by accident, this rule prevents it from getting committed.
+test-data/
+
+# Test harness output (timestamped JSON reports from scripts/test_lab_recs.py).
+test-results/
+
+# Local env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Flowise / n8n local data — these live in ~/.flowise and ~/.n8n on the host,
+# not in the repo, but explicit anyway.
+.flowise/
+.n8n/
+
+# Internal-only — kept out of the public demo repo.
+# Local harness config (Claude Code permission allowlist, dev launch config
+# with the ngrok tunnel endpoint).
+.claude/
+# Internal dev log + business/positioning docs (not for public demo).
+helix-tasks.md
+helix-1pager.docx
+helix-marketing.docx
+helix-crm-roadmap.pdf
