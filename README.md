@@ -3,6 +3,7 @@
 **AI-assisted clinical decision support for primary care.** A paste-text patient note becomes a structured chart in ~90 seconds: a longitudinal summary, recurring patterns, guideline-backed lab recommendations, differential-diagnosis exclusions, and five guided questions for the next visit — all reviewed and signed off by the clinician.
 
 → **Live demo:** [https://risingagent.github.io/helix-crm-demo/](https://risingagent.github.io/helix-crm-demo/)
+→ **Full product summary:** [`PRODUCT.md`](PRODUCT.md) (also available as polished [`PRODUCT.docx`](PRODUCT.docx))
 
 ---
 
@@ -51,10 +52,12 @@ Per-patient Pinecone ingestion is wired into the submit cascade so new patients 
 
 | Path | What it is |
 |---|---|
+| `PRODUCT.md` / `PRODUCT.docx` | Full product summary — exec narrative, architecture, walkthroughs, tech stack, phase history, Phase 4 roadmap |
 | `helix-demo.html` | Self-contained static demo of the dashboard UI (rendered live via GitHub Pages) |
 | `index.html` | Redirects the Pages root to `helix-demo.html` |
 | `scripts/serve_ingest.py` | Flask service — `POST /ingest` for per-patient Pinecone ingestion, called by n8n at the end of CRM Sync |
 | `scripts/ingest_patient_pinecone.py` | CLI for the same ingestion logic — chunks Supabase note text, embeds via OpenAI, upserts to Pinecone with `patient_id` metadata |
+| `scripts/purge_pinecone_by_ids.py` | Cleanup companion to the DB `helix_purge_test_debris` RPC — removes Pinecone vectors for the deleted patient IDs |
 | `scripts/backfill_*.py` | One-off backfill harnesses for summaries, patterns/questions, labs/dx (used during demo data seeding) |
 | `scripts/test_*.py` | Test harnesses for the lab-recs and dx-exclusion chatflows |
 | `scripts/*_fixtures.py` | Hand-authored fixture cases used by the test harnesses |
@@ -117,8 +120,8 @@ For persistent operation on macOS, the service runs as a launchd LaunchAgent (`c
 | 1 – 3.4 | Knowledge-base ingestion, individual chatflows (Pattern, Lab, Dx, Question), CRM Sync intake | Done |
 | 3.5e | Sign-off UX, cascade race fix, panel polish, Path C Pinecone ingestion script | Done |
 | 3.5f | Submit-to-detail cascade, page split, progress stepper, sample-note generator, persistent Flask service | Done — end-to-end verified |
-| 3.6 (planned) | In-session patient updates: append a follow-up note → merged living summary with new content highlighted → cumulative re-cascade | Designed, not built |
-| 4 (future) | HIPAA path: SSO, audit logging, BAA-covered vector store, deletion API | Not started |
+| 3.6 | In-session patient updates: append-only history, cumulative retrieval, merged living document with `<mark>` highlights, snapshot-and-wait cascade re-runs, `helix_patient_latest` read view, `helix_latest_summary` RPC | Done — end-to-end verified |
+| 4 (future) | HIPAA path (SSO, audit, BAA Pinecone), `activePatientId` refactor, cross-panel highlights, version-history drawer, Docker-ize Flask | Not started — see `PRODUCT.md` roadmap |
 
 ---
 
