@@ -54,6 +54,41 @@
   .uncertainty-block .field-label { color: #d29922; }
   .uncertainty-block .field-value { font-size: 12px; color: #c9d1d9; }
   .footer-note { color: #8b949e; font-size: 11px; padding: 16px 24px; border-top: 1px solid #30363d; background: #0a0d12; }
+
+  /* ── Phase 3.5 / 3.6 interactive demo additions ─────────────────────── */
+  .recording-inset { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px 22px; margin: 16px 28px 0; }
+  .recording-inset h3 { margin: 0 0 6px; font-size: 14px; color: #c9d1d9; font-weight: 600; }
+  .recording-inset p { margin: 4px 0; font-size: 12px; color: #8b949e; line-height: 1.55; }
+  .recording-inset a { color: #58a6ff; }
+  .recording-inset video { max-width: 100%; border-radius: 6px; background: #000; margin-top: 8px; display: block; }
+  .recording-inset .placeholder { padding: 22px; background: #0a0d12; border: 1px dashed #30363d; border-radius: 6px; text-align: center; font-size: 12px; color: #8b949e; margin-top: 8px; }
+
+  .demo-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; padding: 10px 14px; background: #161b22cc; border: 1px solid #30363d; border-radius: 8px; }
+  .demo-controls .label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .demo-btn { background: #1f6feb; color: #fff; border: 0; padding: 7px 13px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .12s; }
+  .demo-btn:hover:not(:disabled) { background: #388bfd; }
+  .demo-btn:disabled { background: #1f6feb55; cursor: wait; }
+
+  .stepper-card { background: #0d1117; border: 1px solid #1f6feb55; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
+  .stepper-card .stepper-title { font-size: 13px; font-weight: 600; color: #58a6ff; margin-bottom: 10px; }
+  .stepper-card ul { list-style: none; margin: 0; padding: 0; }
+  .stepper-card li { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; color: #c9d1d9; }
+  .stepper-card li .step-icon { width: 18px; display: inline-block; text-align: center; }
+  .stepper-card li.done { color: #56d364; }
+  .stepper-card li.active { color: #58a6ff; font-weight: 500; }
+  .stepper-card li.pending { color: #8b949e; }
+
+  .update-status { font-size: 13px; color: #c9d1d9; background: #161b22; border-left: 3px solid #58a6ff; border-radius: 0 6px 6px 0; padding: 9px 14px; margin-bottom: 12px; }
+  .update-status.done { border-left-color: #56d364; color: #56d364; }
+
+  mark { background: #d29922; color: #0d1117; padding: 1px 5px; border-radius: 3px; font-weight: 500; }
+
+  .merged-doc { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 14px 18px; line-height: 1.65; }
+  .merged-doc h4 { font-size: 13px; font-weight: 600; color: #e8eaed; margin: 14px 0 6px; }
+  .merged-doc h4:first-child { margin-top: 0; }
+  .merged-doc p { margin: 5px 0; color: #c9d1d9; font-size: 13px; }
+  /* ────────────────────────────────────────────────────────────────── */
+
   @media (max-width: 768px) {
     .layout { flex-direction: column; }
     .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #30363d; padding: 12px; }
@@ -68,6 +103,13 @@
   <h1>Helix <span>CRM</span> — Clinical Decision Support</h1>
   <div class="warning">⚠ SYNTHETIC TEST DATA — fabricated for software testing</div>
 </div>
+
+<section class="recording-inset">
+  <h3>📺 See the real Retool app in action</h3>
+  <p>This page is a static mock of the panel layout. The full interactive product — submit cascade, in-session updates, merged living document with diff highlights — lives in the Retool app. A short recording is embedded below; full architecture and walkthroughs are in <a href="PRODUCT.md">PRODUCT.md</a>.</p>
+  <!-- TODO: replace the placeholder with <video controls src="docs/helix-update-flow.mp4"></video> once recorded -->
+  <div class="placeholder" id="video-placeholder">Recording coming soon — see <a href="PRODUCT.md">PRODUCT.md</a> § Walkthroughs for the step-by-step.<br>Meanwhile, open any patient below and click <strong>▶ Phase 3.6 in-session update</strong> for a simulated replay of the merged-document flow.</div>
+</section>
 
 <div class="layout">
   <aside class="sidebar">
@@ -400,7 +442,138 @@ function renderQuestions(qs, signed) {
   `;
 }
 
+// ── Phase 3.5 / 3.6 interactive demo ────────────────────────────────────
+let demoRunning = false;
+
+function runPhase35Demo() {
+  if (demoRunning) return;
+  demoRunning = true;
+  const btn = document.getElementById('demo-35-btn');
+  if (btn) btn.disabled = true;
+  const slot = document.getElementById('demo-slot');
+  slot.innerHTML = `
+    <div class="stepper-card" id="stepper">
+      <div class="stepper-title">Processing new patient — please wait</div>
+      <ul>
+        <li id="s0" class="active"><span class="step-icon">⏳</span> Saving note and embedding for retrieval</li>
+        <li id="s1" class="pending"><span class="step-icon">⏳</span> Analyzing patterns</li>
+        <li id="s2" class="pending"><span class="step-icon">⏳</span> Generating lab recommendations</li>
+        <li id="s3" class="pending"><span class="step-icon">⏳</span> Identifying diagnoses to rule out</li>
+        <li id="s4" class="pending"><span class="step-icon">⏳</span> All analyses complete — opening chart…</li>
+      </ul>
+    </div>
+  `;
+  const advance = (i) => {
+    const li = document.getElementById('s' + i);
+    if (!li) return;
+    li.classList.remove('active', 'pending');
+    li.classList.add('done');
+    const ic = li.querySelector('.step-icon');
+    if (ic) ic.textContent = '✅';
+    const next = document.getElementById('s' + (i + 1));
+    if (next) { next.classList.remove('pending'); next.classList.add('active'); }
+  };
+  setTimeout(() => advance(0), 1200);
+  setTimeout(() => advance(1), 2800);
+  setTimeout(() => advance(2), 4400);
+  setTimeout(() => advance(3), 6000);
+  setTimeout(() => advance(4), 7200);
+  setTimeout(() => {
+    slot.innerHTML = '';
+    if (btn) btn.disabled = false;
+    demoRunning = false;
+  }, 9200);
+}
+
+function mergedDocFor(id) {
+  if (id === 'SYNTH-005') {
+    return `
+      <div class="merged-doc">
+        <h4>Chief Complaint</h4>
+        <p>8-week follow-up — comprehensive geriatric review. <mark>🆕 Second fall 2 weeks ago with right-hip soft-tissue contusion (no fracture on X-ray)</mark>. Donepezil 10 mg well tolerated since titration.</p>
+
+        <h4>History of Present Illness</h4>
+        <p>Established patient with mixed-type MCI / early dementia, HFpEF NYHA II, persistent AF on apixaban, T2DM (diet-controlled), CKD Stage 3a, severe knee/hip OA. Returns for 8-week follow-up. <mark>🆕 Reports a second fall — slipped getting out of armchair, no head strike, no LOC. Urgent-care X-ray: soft-tissue contusion of right hip, no fracture</mark>. Daughter reports stable cognition since prior visit; no new episodes of disorientation. Diuretic regimen unchanged; no orthopnea or worsening dyspnea.</p>
+
+        <h4>Medications</h4>
+        <p>Apixaban 2.5 mg BID; Metoprolol succinate 50 mg daily; Furosemide 20 mg daily; Lisinopril 10 mg daily; Levothyroxine 75 mcg daily; Atorvastatin 20 mg QHS; <mark>🆕 Donepezil 10 mg QHS (titrated from 5 mg, well tolerated)</mark>; Acetaminophen 650 mg TID PRN; Topical diclofenac PRN knees; <mark>🆕 Vitamin D 2000 IU daily (increased from 1000 IU per low 25-OH)</mark>; Calcium carbonate 600 mg BID. <mark>🆕 Tamsulosin discontinued — duplicate reconciled, urology owns prescription</mark>.</p>
+
+        <h4>Diagnoses</h4>
+        <p>HFpEF NYHA II; persistent atrial fibrillation; hypertension; T2DM (diet-controlled); MCI vs. early dementia (mixed type); severe osteoarthritis (both knees, right hip); hypothyroidism; CKD Stage 3a; recurrent falls; frailty; mild anemia. <mark>🆕 Right-hip soft-tissue contusion (resolving)</mark>; <mark>🆕 Vitamin D insufficiency (now treated)</mark>.</p>
+
+        <h4>Allergies</h4>
+        <p>Sulfa (rash). Penicillin label retained from prior chart (no documented adult reaction).</p>
+
+        <h4>Recent Labs</h4>
+        <p>WBC 6.1; Hgb 11.8 (baseline); Plt 220; Na 138; K 4.2; Cr 1.3; eGFR 48; Glucose 142; NT-proBNP 980 (stable); TSH 3.4; HbA1c 6.6; <mark>🆕 MoCA 18 → 17/30 (down 1 point)</mark>; <mark>🆕 25-OH Vitamin D 22 ng/mL (insufficient)</mark>; <mark>🆕 Hip X-ray right: no fracture, soft-tissue contusion only</mark>.</p>
+
+        <h4>Assessment &amp; Plan</h4>
+        <p>HFpEF stable. Cognitive decline slow-progressive — donepezil 10 mg continued. <mark>🆕 Falls program referral re-emphasized; daughter to remove armchair rug; second fall heightens urgency of completed driving evaluation (still outstanding)</mark>. <mark>🆕 Vitamin D supplementation increased to 2000 IU daily; recheck 25-OH at next visit</mark>. <mark>🆕 Tamsulosin duplicate reconciled — urology owns prescription</mark>. Anemia workup remains pending (ferritin, B12, folate drawn this visit). Advance care planning scheduled for next visit per daughter's request.</p>
+      </div>
+    `;
+  }
+  if (id === 'SYNTH-001') {
+    return `
+      <div class="merged-doc">
+        <h4>Chief Complaint</h4>
+        <p>Annual physical examination — <mark>🆕 6-month interval follow-up; new exertional fatigue noted ~6 weeks ago, prompting thyroid recheck</mark>.</p>
+
+        <h4>History of Present Illness</h4>
+        <p>Established patient with episodic migraine and seasonal allergic rhinitis. <mark>🆕 Over the past 6 weeks she has noted exertional fatigue and mild weight gain (~3 lb) despite stable activity. Repeat TSH today is 8.4 (was 2.1 at last visit); free T4 0.72 (low)</mark>. No palpitations, no temperature intolerance changes. Migraine frequency unchanged.</p>
+
+        <h4>Medications</h4>
+        <p>Loratadine 10 mg PO daily PRN allergies; Sumatriptan 50 mg PO PRN migraine. <mark>🆕 Levothyroxine 50 mcg PO daily (newly initiated)</mark>.</p>
+
+        <h4>Diagnoses</h4>
+        <p>Episodic migraine; Seasonal allergic rhinitis. <mark>🆕 Primary overt hypothyroidism (newly diagnosed; TPO antibody pending)</mark>.</p>
+
+        <h4>Allergies</h4>
+        <p>Penicillin (rash, childhood).</p>
+
+        <h4>Recent Labs</h4>
+        <p>CBC normal; Glucose 88 mg/dL; Creatinine 0.8; Total cholesterol 178; LDL 102; HDL 58; HbA1c 5.2. <mark>🆕 TSH 8.4 mIU/L (H), Free T4 0.72 ng/dL (L)</mark>.</p>
+
+        <h4>Assessment &amp; Plan</h4>
+        <p>Migraine and allergic rhinitis unchanged. <mark>🆕 New overt hypothyroidism — initiate levothyroxine 50 mcg daily, recheck TSH and Free T4 in 6 weeks; TPO antibody pending</mark>. Routine screening labs at goal; repeat lipid panel and HbA1c in 3 years per USPSTF cadence.</p>
+      </div>
+    `;
+  }
+  return `
+    <div class="merged-doc">
+      <p>The merged-living-document view shows each patient's structured summary after an in-session update, with <mark>🆕 new or changed spans</mark> highlighted in yellow.</p>
+      <p>Try the demo from <strong>SYNTH-001 — Maria Gonzalez</strong> or <strong>SYNTH-005 — Eleanor M. Hayes</strong> for richer examples with multiple highlighted updates across medications, labs, and assessment.</p>
+    </div>
+  `;
+}
+
+function runPhase36Demo() {
+  if (demoRunning) return;
+  demoRunning = true;
+  const btn = document.getElementById('demo-36-btn');
+  if (btn) btn.disabled = true;
+  const slot = document.getElementById('demo-slot');
+  slot.innerHTML = '<div class="update-status">⏳ Saving update &amp; re-embedding… (Helix Update Sync running)</div>';
+  setTimeout(() => {
+    slot.innerHTML = '<div class="update-status">⏳ Re-analyzing patterns, labs &amp; diagnoses across visits…</div>';
+  }, 2500);
+  setTimeout(() => {
+    slot.innerHTML = '<div class="update-status done">✓ Chart updated — merged summary &amp; analyses refreshed</div>';
+    // Replace the Patient Summary panel body with the merged-doc view
+    const panels = document.querySelectorAll('#main .panel');
+    if (panels.length > 0) {
+      const body = panels[0].querySelector('.panel-body');
+      if (body) body.innerHTML = mergedDocFor(activeId);
+    }
+  }, 6000);
+  setTimeout(() => {
+    if (btn) btn.disabled = false;
+    demoRunning = false;
+  }, 11000);
+}
+// ────────────────────────────────────────────────────────────────────────
+
 function renderPatient(id) {
+  activeId = id;
   const p = DATA[id];
   document.querySelectorAll('.patient-row').forEach(r => r.classList.toggle('active', r.dataset.id === id));
   document.getElementById('main').innerHTML = `
@@ -408,6 +581,13 @@ function renderPatient(id) {
       <h2>${escapeHtml(p.name)}</h2>
       <div class="meta">Patient ID: ${escapeHtml(id)} · DOB: ${escapeHtml(p.dob)} · Sex: ${escapeHtml(p.sex)}</div>
     </div>
+    <div class="demo-controls">
+      <span class="label">Try the interactive flows:</span>
+      <button id="demo-35-btn" class="demo-btn" onclick="runPhase35Demo()">▶ Phase 3.5 submit cascade</button>
+      <button id="demo-36-btn" class="demo-btn" onclick="runPhase36Demo()">▶ Phase 3.6 in-session update</button>
+      <span class="label" style="margin-left:auto;">simulates the real Retool flow</span>
+    </div>
+    <div id="demo-slot"></div>
     ${renderSummary(p.summary)}
     ${renderPatterns(p.patterns)}
     ${renderLabRecs(p.lab_recs)}
