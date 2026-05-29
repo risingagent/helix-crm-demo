@@ -87,6 +87,21 @@
   .merged-doc h4 { font-size: 13px; font-weight: 600; color: #e8eaed; margin: 14px 0 6px; }
   .merged-doc h4:first-child { margin-top: 0; }
   .merged-doc p { margin: 5px 0; color: #c9d1d9; font-size: 13px; }
+
+  .walkthrough { margin-top: 12px; }
+  .walkthrough h4 { font-size: 13px; font-weight: 600; color: #c9d1d9; margin: 16px 0 6px; padding-top: 12px; border-top: 1px solid #21262d; }
+  .walkthrough h4:first-of-type { margin-top: 6px; padding-top: 0; border-top: 0; }
+  .walkthrough p { font-size: 12px; color: #8b949e; margin: 4px 0 8px; line-height: 1.5; }
+  .walkthrough figure { margin: 0 0 14px; padding: 10px; background: #0a0d12; border: 1px solid #21262d; border-radius: 6px; }
+  .walkthrough figure.highlight { border-color: #d2992266; background: #1c120633; }
+  .walkthrough img { display: block; max-width: 100%; height: auto; border-radius: 4px; margin: 0 auto 8px; }
+  .walkthrough figcaption { font-size: 12px; color: #8b949e; line-height: 1.5; text-align: center; padding: 0 8px; }
+  .walkthrough figcaption strong { color: #c9d1d9; }
+  .walkthrough figcaption code { background: #161b22; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #d29922; }
+  .walkthrough details { background: #0a0d12; border: 1px solid #21262d; border-radius: 6px; padding: 8px 12px; margin-top: 12px; font-size: 12px; color: #8b949e; }
+  .walkthrough details summary { cursor: pointer; color: #58a6ff; }
+  .walkthrough details ul { margin: 8px 0 4px 18px; padding: 0; }
+  .walkthrough details li { margin-bottom: 4px; }
   /* ────────────────────────────────────────────────────────────────── */
 
   @media (max-width: 768px) {
@@ -106,9 +121,61 @@
 
 <section class="recording-inset">
   <h3>📺 See the real Retool app in action</h3>
-  <p>This page is a static mock of the panel layout. The full interactive product — submit cascade, in-session updates, merged living document with diff highlights — lives in the Retool app. A short recording is embedded below; full architecture and walkthroughs are in <a href="PRODUCT.md">PRODUCT.md</a>.</p>
-  <!-- TODO: replace the placeholder with <video controls src="docs/helix-update-flow.mp4"></video> once recorded -->
-  <div class="placeholder" id="video-placeholder">Recording coming soon — see <a href="PRODUCT.md">PRODUCT.md</a> § Walkthroughs for the step-by-step.<br>Meanwhile, open any patient below and click <strong>▶ Phase 3.6 in-session update</strong> for a simulated replay of the merged-document flow.</div>
+  <p>A guided walkthrough of the live product. Architecture, design decisions, and the full phase history are in <a href="PRODUCT.md">PRODUCT.md</a>. Below this section you'll find a static mock of the dashboard with two interactive demo buttons that simulate the Phase 3.5 cascade and Phase 3.6 update flow in-browser — no backend required.</p>
+
+  <div class="walkthrough">
+
+    <h4>1. Cover screen — patient list + new-patient submit</h4>
+    <figure>
+      <img src="screenshots/1-cover.png" alt="Cover screen with patient list table and Submit New Patient Note panel" loading="lazy">
+      <figcaption>The cover container: a Supabase-backed patient table on the left, and the Submit New Patient Note panel on the right with <strong>Generate sample note</strong> and <strong>Submit</strong> buttons. Clicking a row opens that patient's detail view.</figcaption>
+    </figure>
+
+    <h4>2. Patient detail view</h4>
+    <figure>
+      <img src="screenshots/3a-view%20existing%20patient.png" alt="Patient detail view with Summary, Update Note panel, and analysis panels below" loading="lazy">
+      <figcaption>Patient Summary on the left, the Follow-up / Update Note panel on the right with <strong>Generate Update Note</strong> + <strong>Submit Update</strong>. Lab Recommendations, Diagnosis Exclusions, Patterns, and Guided Questions panels stack below — each with its own <strong>Mark Reviewed</strong> sign-off.</figcaption>
+    </figure>
+
+    <h4>3. Clinician sign-off (per panel)</h4>
+    <figure>
+      <img src="screenshots/4a-mark%20review%20summary.png" alt="Patient Summary panel showing Reviewed by ... pill after sign-off" loading="lazy">
+      <figcaption>Clicking <strong>Mark Reviewed</strong> records reviewer + timestamp against that panel's latest row. The pattern repeats independently on all five panels (Summary, Patterns, Lab Recs, Dx Exclusions, Questions).</figcaption>
+    </figure>
+
+    <h4>4. Generate guided questions on demand</h4>
+    <figure>
+      <img src="screenshots/5c-questions%20post%20generate.png" alt="Guided Questions panel populated with rationale-cited entries" loading="lazy">
+      <figcaption>The Questions Sync workflow runs an LLM Chain seeded with the patient's pattern analysis and produces 5–8 prioritized clinical questions, each tagged with category and citing the rationale that prompted it.</figcaption>
+    </figure>
+
+    <h4>5. Phase 3.6 — in-session update</h4>
+    <figure>
+      <img src="screenshots/6b-generate%20note%20select.png" alt="Update Note panel populated with a synthetic follow-up note" loading="lazy">
+      <figcaption><strong>Generate Update Note</strong> fills the textarea with a clinically plausible synthetic follow-up via the Helix Update Note Generator chatflow — coherent with the patient's existing diagnoses and medications.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="screenshots/7a-submit%20update.png" alt="Update submission in flight, status line visible" loading="lazy">
+      <figcaption><strong>Submit Update</strong> fires the merge: n8n calls the Update Extractor chatflow (which produces the merged living document), appends a new <code>summaries</code> row, re-ingests the cumulative narrative to Pinecone, then fires the cascade (Pattern / Lab / Dx Sync) on the cumulative data. The status line cycles through "Saving update…" → "Re-analyzing…" → "Chart updated".</figcaption>
+    </figure>
+
+    <figure class="highlight">
+      <img src="screenshots/7b-submit%20update%20summary.png" alt="Post-update Patient Summary with yellow mark highlights on the changed content" loading="lazy">
+      <figcaption><strong>The headline visual.</strong> The Patient Summary now renders the merged living document with <code>&lt;mark&gt;</code> yellow highlights on every span that's new or changed in this update — across Chief Complaint, HPI, Medications, Diagnoses, Labs, and Assessment &amp; Plan. Unchanged content carries forward without highlight. History is preserved in the append-only <code>summaries</code> table for diff + retrieval; the UI shows the latest version via the <code>helix_patient_latest</code> view.</figcaption>
+    </figure>
+
+    <details>
+      <summary>Additional screenshots in <code>screenshots/</code> not shown inline</summary>
+      <ul>
+        <li><code>2-select existing patient.png</code> — patient row selection feedback</li>
+        <li><code>3b-view existing patient ext.png</code> — extended detail view (scrolled)</li>
+        <li><code>4b–4e-mark review *.png</code> — sign-off applied to Patterns, Labs, Dx Exclusions, and Questions panels (same pattern as 4a)</li>
+        <li><code>5a-questions button.png</code>, <code>5b-questions select generate.png</code> — pre-generation empty state + in-flight</li>
+        <li><code>6a-generate note button.png</code> — empty Update Note panel before generation</li>
+      </ul>
+    </details>
+  </div>
 </section>
 
 <div class="layout">
